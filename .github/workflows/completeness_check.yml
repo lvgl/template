@@ -1,0 +1,55 @@
+name: Validate README and Links
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Validate README sections
+        run: |
+          if ! grep -q "## Overview" README.md || \
+             ! grep -q "## Benchmark" README.md || \
+             ! grep -q "## Specification" README.md || \
+             ! grep -q "## Getting started" README.md; then
+            echo "README.md is missing one or more required sections." && exit 1;
+          fi
+
+      - name: Check for YouTube link in README
+        run: |
+          if ! grep -qE 'https://(www\.)?youtube\.com|youtu\.be' README.md; then
+            echo "README.md is missing a link to a YouTube video." && exit 1;
+          fi
+
+      - name: Check if https://lvgl.io/boards has a link to this repo
+        run: |
+          REPO_URL=$(git config --get remote.origin.url | sed 's/\.git$//')
+          curl -s https://lvgl.io/boards | grep -q "$REPO_URL"
+          if [ $? -ne 0 ]; then
+            echo "https://lvgl.io/boards does not have a link to this repository." && exit 1;
+          fi
+
+      - name: Check if https://github.com/lvgl/lvgl_project_creator/blob/master/manifests has a link to this repo
+        run: |
+          REPO_URL=$(git config --get remote.origin.url | sed 's/.*\/\/[^\/]*\/\([^\/]*\/[^\/]*\).*/\1/')
+          curl -s https://raw.githubusercontent.com/lvgl/lvgl_project_creator/master/manifests | grep -q "$REPO_URL"
+          if [ $? -ne 0 ]; then
+            echo "Manifest does not contain a link to this repository." && exit 1;
+          fi
+
+      - name: Check for lv_conf.defaults in root
+        run: |
+          if [ ! -f lv_conf.defaults ]; then
+            echo "lv_conf.defaults file is missing in the root directory." && exit 1;
+          fi
